@@ -10,11 +10,16 @@ from .ldivider.ld_segment import get_mask_generator, get_masks, show_anns
 from pytoshop.enums import BlendMode
 import requests
 
+import folder_paths
+import node_helpers
+import importlib
+
 comfy_path = os.path.dirname(folder_paths.__file__)
 
 layer_divider_path = f'{comfy_path}/custom_nodes/ComfyUI-LayerDivider'
 
-output_dir = f"{layer_divider_path}/output"
+output_dir = f"/workspace/ComfyUI/static"
+# output_dir = f"{layer_divider_path}/output"
 input_dir = f"{layer_divider_path}/input"
 model_dir = f"{layer_divider_path}/segment_model"
 
@@ -299,6 +304,77 @@ class LayerDividerSegmentMask:
 
         return self.input_image, df, "seg_mask", masked_image
 
+class LoadImageWithFileName:
+    @classmethod
+    def INPUT_TYPES(s):
+        input_dir = folder_paths.get_input_directory()
+        files = [f for f in os.listdir(input_dir) if os.path.isfile(os.path.join(input_dir, f))]
+        return {"required":
+                    {"image": (sorted(files), {"image_upload": True})},
+                }
+
+    CATEGORY = "image"
+
+    RETURN_TYPES = ("IMAGE", "MASK", "STR")
+    FUNCTION = "load_image"
+    def load_image(self, image):
+        image_path = folder_paths.get_annotated_filepath(image)
+        
+        img = node_helpers.pillow(Image.open, image_path)
+        
+        output_images = []
+        output_masks = []
+        w, h = None, None
+
+        excluded_formats = ['MPO']
+        
+        for i in ImageSequence.Iterator(img):
+            i = node_helpers.pillow(ImageOps.exif_transpose, i)
+
+            if i.mode == 'I':
+                i = i.point(lambda i: i * (1 / 255))
+            image = i.convert("RGB")
+
+            if len(output_images) == 0:
+                w = image.size[0]
+                h = image.size[1]
+            
+            if image.size[0] != w or image.size[1] != h:
+                continue
+            
+            image = np.array(image).astype(np.float32) / 255.0
+            image = torch.from_numpy(image)[None,]
+            if 'A' in i.getbands():
+                mask = np.array(i.getchannel('A')).astype(np.float32) / 255.0
+                mask = 1. - torch.from_numpy(mask)
+            else:
+                mask = torch.zeros((64,64), dtype=torch.float32, device="cpu")
+            output_images.append(image)
+            output_masks.append(mask.unsqueeze(0))
+
+        if len(output_images) > 1 and img.format not in excluded_formats:
+            output_image = torch.cat(output_images, dim=0)
+            output_mask = torch.cat(output_masks, dim=0)
+        else:
+            output_image = output_images[0]
+            output_mask = output_masks[0]
+
+        return (output_image, output_mask, image_path.split('/')[-1])
+
+    @classmethod
+    def IS_CHANGED(s, image):
+        image_path = folder_paths.get_annotated_filepath(image)
+        m = hashlib.sha256()
+        with open(image_path, 'rb') as f:
+            m.update(f.read())
+        return m.digest().hex()
+
+    @classmethod
+    def VALIDATE_INPUTS(s, image):
+        if not folder_paths.exists_annotated_filepath(image):
+            return "Invalid image file: {}".format(image)
+
+        return True
 
 class LayerDividerDivideLayer:
     def __init__(self):
@@ -312,6 +388,7 @@ class LayerDividerDivideLayer:
                 "df": ("LD_DF",),
                 "divide_mode": ("LD_DIVIDE_MODE",),
                 "layer_mode": (["composite", "normal"],),
+                "file_name": ("STRING",),
             }
         }
 
@@ -324,7 +401,7 @@ class LayerDividerDivideLayer:
 
     CATEGORY = "LayerDivider"
 
-    def execute(self, input_image, df, divide_mode, layer_mode):
+    def execute(self, input_image, df, divide_mode, layer_mode, file_name):
         if layer_mode == "composite":
             base_layer_list, shadow_layer_list, bright_layer_list, addition_layer_list, subtract_layer_list = get_composite_layer(
                 input_image, df)
@@ -335,7 +412,8 @@ class LayerDividerDivideLayer:
                 [BlendMode.normal, BlendMode.screen, BlendMode.multiply, BlendMode.subtract, BlendMode.linear_dodge],
                 output_dir,
                 layer_mode,
-                divide_mode
+                divide_mode,
+                file_name
             )
 
         elif layer_mode == "normal":
@@ -347,7 +425,8 @@ class LayerDividerDivideLayer:
                 [BlendMode.normal, BlendMode.normal, BlendMode.normal],
                 output_dir,
                 layer_mode,
-                divide_mode
+                divide_mode,
+                file_name
             )
 
         print("filename:" + filename)
