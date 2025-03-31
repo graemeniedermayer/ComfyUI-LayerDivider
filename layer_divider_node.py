@@ -9,14 +9,16 @@ from .ldivider.ld_processor import get_base, get_normal_layer, get_composite_lay
 from .ldivider.ld_segment import get_mask_generator, get_masks, show_anns
 from pytoshop.enums import BlendMode
 import requests
+from PIL import Image, ImageOps, ImageSequence, ImageFile
 
 import folder_paths
 import node_helpers
 import importlib
+import hashlib
 
 comfy_path = os.path.dirname(folder_paths.__file__)
 
-layer_divider_path = f'{comfy_path}/custom_nodes/ComfyUI-LayerDivider'
+layer_divider_path = f'{comfy_path}/custom_nodes/comfyui-layerdivider'
 
 output_dir = f"/workspace/ComfyUI/static"
 # output_dir = f"{layer_divider_path}/output"
@@ -359,7 +361,7 @@ class LoadImageWithFileName:
             output_image = output_images[0]
             output_mask = output_masks[0]
 
-        return (output_image, output_mask, image_path.split('/')[-1])
+        return (output_image, output_mask, image_path.split('/')[-1].split('.png')[0])
 
     @classmethod
     def IS_CHANGED(s, image):
@@ -388,7 +390,7 @@ class LayerDividerDivideLayer:
                 "df": ("LD_DF",),
                 "divide_mode": ("LD_DIVIDE_MODE",),
                 "layer_mode": (["composite", "normal"],),
-                "file_name": ("STRING",),
+                "file_name": ("STR",),
             }
         }
 
@@ -444,12 +446,14 @@ NODE_CLASS_MAPPINGS = {
     "LayerDivider - Color Base": LayerDividerColorBase,
     "LayerDivider - Load SAM Mask Generator": LayerDividerLoadMaskGenerator,
     "LayerDivider - Segment Mask": LayerDividerSegmentMask,
-    "LayerDivider - Divide Layer": LayerDividerDivideLayer
+    "LayerDivider - Divide Layer": LayerDividerDivideLayer,
+    "Load Image - with file name":LoadImageWithFileName
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "LayerDivider - Color Base": LayerDividerColorBase,
     "LayerDivider - Load SAM Mask Generator": LayerDividerLoadMaskGenerator,
     "LayerDivider - Segment Mask": LayerDividerSegmentMask,
-    "LayerDivider - Divide Layer": LayerDividerDivideLayer
+    "LayerDivider - Divide Layer": LayerDividerDivideLayer,
+    "Load Image - with file name":LoadImageWithFileName
 }
