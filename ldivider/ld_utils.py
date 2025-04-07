@@ -78,7 +78,7 @@ def load_masks(output_dir):
     return masks
 
 
-def save_psd(input_image, layers, names, modes, output_dir, layer_mode, divide_mode):
+def save_psd(input_image, layers, names, modes, output_dir, layer_mode, divide_mode, file_name):
     psd = pytoshop.core.PsdFile(num_channels=3, height=input_image.shape[0], width=input_image.shape[1])
     if layer_mode == "normal":
         for idx, output in enumerate(layers[0]):
@@ -95,10 +95,10 @@ def save_psd(input_image, layers, names, modes, output_dir, layer_mode, divide_m
 
     name = randomname(10)
 
-    with open(f"{output_dir}/output_{divide_mode}_{layer_mode}_{name}.psd", 'wb') as fd2:
+    with open(f"{output_dir}/output_{file_name}.psd", 'wb') as fd2:
         psd.write(fd2)
 
-    return f"{output_dir}/output_{divide_mode}_{layer_mode}_{name}.psd"
+    return f"{output_dir}/output_{file_name}.psd"
 
 
 def divide_folder(psd_path, input_dir, mode):
