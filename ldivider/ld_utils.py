@@ -77,28 +77,31 @@ def load_masks(output_dir):
         masks = pickle.load(f)
     return masks
 
-
 def save_psd(input_image, layers, names, modes, output_dir, layer_mode, divide_mode, file_name):
-    psd = pytoshop.core.PsdFile(num_channels=3, height=input_image.shape[0], width=input_image.shape[1])
-    if layer_mode == "normal":
-        for idx, output in enumerate(layers[0]):
-            psd = add_psd(psd, layers[0][idx], names[0] + str(idx), modes[0])
-            psd = add_psd(psd, layers[1][idx], names[1] + str(idx), modes[1])
-            psd = add_psd(psd, layers[2][idx], names[2] + str(idx), modes[2])
-    else:
-        for idx, output in enumerate(layers[0]):
-            psd = add_psd(psd, layers[0][idx], names[0] + str(idx), modes[0])
-            psd = add_psd(psd, layers[1][idx], names[1] + str(idx), modes[1])
-            psd = add_psd(psd, layers[2][idx], names[2] + str(idx), modes[2])
-            psd = add_psd(psd, layers[3][idx], names[3] + str(idx), modes[3])
-            psd = add_psd(psd, layers[4][idx], names[4] + str(idx), modes[4])
+    with open(f'/workspace/ComfyUI/custom_nodes/comfyui-layerdivider/input/empty.psd', "rb") as fd:
+        pytoshop.PsdFile = pytoshop.read(fd)
+        psd = pytoshop.PsdFile
+        psd.width = input_image.shape[1]
+        psd.height = input_image.shape[0]
+        if layer_mode == "normal":
+            for idx, output in enumerate(layers[0]):
+                psd = add_psd(psd, layers[0][idx], names[0] + str(idx), modes[0])
+                psd = add_psd(psd, layers[1][idx], names[1] + str(idx), modes[1])
+                psd = add_psd(psd, layers[2][idx], names[2] + str(idx), modes[2])
+        else:
+            for idx, output in enumerate(layers[0]):
+                psd = add_psd(psd, layers[0][idx], names[0] + str(idx), modes[0])
+                psd = add_psd(psd, layers[1][idx], names[1] + str(idx), modes[1])
+                psd = add_psd(psd, layers[2][idx], names[2] + str(idx), modes[2])
+                psd = add_psd(psd, layers[3][idx], names[3] + str(idx), modes[3])
+                psd = add_psd(psd, layers[4][idx], names[4] + str(idx), modes[4])
 
-    name = randomname(10)
-
-    with open(f"{output_dir}/output_{file_name}.psd", 'wb') as fd2:
-        psd.write(fd2)
-
+        name = randomname(10)
+        with open(f"{output_dir}/output_{file_name}.psd", 'wb') as fd2:
+            psd.write(fd2)
+    psd.layer_and_mask_info.layer_info.layer_records = []
     return f"{output_dir}/output_{file_name}.psd"
+
 
 
 def divide_folder(psd_path, input_dir, mode):
